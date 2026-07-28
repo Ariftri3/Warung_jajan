@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1068415118480",
+    "project_id": "warung-jajan-app",
+    "storage_bucket": "warung-jajan-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1068415118480:android:128fa872ca3ea2edce3c15",
+        "android_client_info": {
+          "package_name": "com.example.warung_jajan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzzm7BsKzDP_h0OGZtrcQ5H96pcszc9_U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
