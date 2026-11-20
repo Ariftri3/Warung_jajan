@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_theme.dart';
 import '../../providers/auth_provider.dart';
-import '../home/home_screen.dart'; // dibuat di Langkah 6
+import '../main_screen.dart';
 import 'register_screen.dart';
 
 /// Sesuai mockup Login Screen: icon toko, "Selamat Datang!", form email +
@@ -42,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (success) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const MainScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

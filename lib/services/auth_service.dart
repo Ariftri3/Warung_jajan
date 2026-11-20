@@ -40,6 +40,7 @@ class AuthService {
       'email': email,
       'phone': '',
       'address': '',
+      'role': 'customer',
     });
 
     return credential;

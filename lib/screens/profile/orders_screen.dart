@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/order_model.dart';
+import '../../utils/currency_formatter.dart';
+import '../../widgets/shimmer_loading.dart';
 
 class OrdersScreen extends StatelessWidget {
   const OrdersScreen({Key? key}) : super(key: key);
@@ -45,7 +47,7 @@ class OrdersScreen extends StatelessWidget {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const OrderListShimmer();
                 }
                 
                 if (snapshot.hasError) {
@@ -107,9 +109,10 @@ class OrdersScreen extends StatelessWidget {
                       date: formattedDate,
                       status: order.status,
                       itemsString: itemsString,
-                      total: 'Rp ${order.total}',
+                      total: CurrencyFormatter.format(order.total),
                       statusColor: statusColor,
                       imageUrl: firstImageUrl,
+                      paymentProofUrl: order.paymentProofUrl,
                     );
                   },
                 );
@@ -127,6 +130,7 @@ class OrdersScreen extends StatelessWidget {
     required String total,
     required Color statusColor,
     String? imageUrl,
+    String? paymentProofUrl,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -288,6 +292,32 @@ class OrdersScreen extends StatelessWidget {
               ),
             ],
           ),
+
+          // Tampilkan bukti transfer jika ada
+          if (paymentProofUrl != null && paymentProofUrl.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+            Text(
+              'Bukti Transfer',
+              style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                paymentProofUrl,
+                height: 120,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 80,
+                  color: Colors.grey.shade200,
+                  child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

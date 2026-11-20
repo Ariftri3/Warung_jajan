@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_theme.dart';
 import '../../providers/auth_provider.dart';
-import '../home/home_screen.dart';
+import '../main_screen.dart';
 
 /// Tidak ada di mockup Stitch, tapi wajib ada supaya user bisa daftar akun baru.
 /// Gaya visual disamakan dengan Login Screen supaya konsisten.
@@ -43,7 +43,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (success) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const MainScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

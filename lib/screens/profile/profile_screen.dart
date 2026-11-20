@@ -4,12 +4,13 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/user_model.dart';
-import '../navigation_dewer.dart';
+import '../app_drawer.dart';
 import '../home/home_screen.dart';
 import '../home/kategori_screen.dart';
 import '../cart/cart_screen.dart';
 import '../auth/login_screen.dart';
 import 'orders_screen.dart';
+import '../admin/admin_dashboard_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -136,6 +137,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 subtitle: userModel.address.isEmpty ? 'Belum ada alamat, ketuk untuk tambah.' : userModel.address,
                 onTap: () => _showEditAddressDialog(userModel.address, uid),
               ),
+              _buildMenuItem(
+                icon: Icons.storefront_outlined,
+                title: 'Panel Penjual (Admin)',
+                subtitle: userModel.role == 'admin'
+                    ? 'Buka panel pengelola pesanan & menu'
+                    : 'Ketuk untuk aktifkan mode admin & buka panel (Demo)',
+                onTap: () async {
+                  if (userModel.role != 'admin') {
+                    await FirebaseFirestore.instance.collection('users').doc(uid).set({
+                      'role': 'admin',
+                    }, SetOptions(merge: true));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Mode Admin berhasil diaktifkan untuk akun ini!'),
+                          backgroundColor: Color(0xFF1B4D24),
+                        ),
+                      );
+                    }
+                  }
+                  if (context.mounted) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+                    );
+                  }
+                },
+              ),
               
               const SizedBox(height: 12),
               _buildLogoutButton(),
@@ -156,7 +185,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         },
       ),
-    bottomNavigationBar: _buildCustomBottomNav(),
     );
   }
 

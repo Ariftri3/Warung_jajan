@@ -4,7 +4,7 @@ import '../utils/app_colors.dart';
 import '../utils/app_theme.dart';
 import '../providers/auth_provider.dart';
 import 'auth/login_screen.dart';
-import 'home/home_screen.dart'; // akan dibuat di Langkah 6
+import 'main_screen.dart';
 
 /// Sesuai mockup: logo bulat, judul "Warung Jajan" (Playfair Display),
 /// tagline "Cita Rasa Nusantara", loading bar, background cream.
@@ -32,7 +32,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => isLoggedIn ? const HomeScreen() : const LoginScreen(),
+        builder: (_) => isLoggedIn ? const MainScreen() : const LoginScreen(),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/product_model.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -316,109 +317,139 @@ class _DetailScreenState extends State<DetailScreen> {
             ),
           ),
           
-          // Fixed Bottom Bar
+          // Fixed Bottom Bar with Live Stock Stream
           Align(
             alignment: Alignment.bottomCenter,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: widget.product.id.isEmpty
+                  ? null
+                  : FirebaseFirestore.instance.collection('products').doc(widget.product.id).snapshots(),
+              builder: (context, snapshot) {
+                ProductModel currentProduct = widget.product;
+                if (snapshot.hasData && snapshot.data!.exists) {
+                  currentProduct = ProductModel.fromFirestore(snapshot.data!);
+                }
+                final bool isAvailable = currentProduct.isAvailable && currentProduct.stock > 0;
+
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, -5),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: SafeArea(
-                child: Row(
-                  children: [
-                    // Quantity Selector
-                    Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove, size: 20),
-                            color: const Color(0xFF1A1A1A),
-                            onPressed: () {
-                              if (_quantity > 1) {
-                                setState(() => _quantity--);
-                              }
-                            },
+                  child: SafeArea(
+                    child: Row(
+                      children: [
+                        // Quantity Selector
+                        Container(
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: isAvailable ? const Color(0xFFE8F5E9) : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(24),
                           ),
-                          Text(
-                            '$_quantity ${widget.product.categoryId == 'Kue Kering' ? 'Toples' : 'Porsi'}',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.add, size: 20),
-                            color: primaryGreen,
-                            onPressed: () {
-                              setState(() => _quantity++);
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    
-                    // Add to Cart Button
-                    Expanded(
-                      child: SizedBox(
-                        height: 48,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            final authProvider = context.read<AuthProvider>();
-                            final uid = authProvider.currentUser?.uid;
-                            if (uid == null) {
-                               ScaffoldMessenger.of(context).showSnackBar(
-                                 const SnackBar(content: Text('Silakan login terlebih dahulu!')),
-                               );
-                               return;
-                            }
-                            
-                            final cartProvider = context.read<CartProvider>();
-                            cartProvider.addToCart(uid, widget.product, qty: _quantity);
-                            
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('${widget.product.name} ditambahkan ke keranjang!'),
-                                backgroundColor: primaryGreen,
-                                behavior: SnackBarBehavior.floating,
+                          child: Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove, size: 20),
+                                color: isAvailable ? const Color(0xFF1A1A1A) : Colors.grey,
+                                onPressed: !isAvailable || _quantity <= 1
+                                    ? null
+                                    : () => setState(() => _quantity--),
                               ),
-                            );
-                          },
-                          icon: const Icon(Icons.shopping_basket_outlined, size: 20),
-                          label: Text(
-                            '+ Keranjang',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
+                              Text(
+                                '$_quantity ${currentProduct.categoryId == 'Kue Kering' ? 'Toples' : 'Porsi'}',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: isAvailable ? Colors.black87 : Colors.grey,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.add, size: 20),
+                                color: isAvailable ? primaryGreen : Colors.grey,
+                                onPressed: !isAvailable
+                                    ? null
+                                    : () {
+                                        if (_quantity < currentProduct.stock) {
+                                          setState(() => _quantity++);
+                                        } else {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Maksimal pembelian sisa stok (${currentProduct.stock})'),
+                                              duration: const Duration(seconds: 1),
+                                            ),
+                                          );
+                                        }
+                                      },
+                              ),
+                            ],
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryGreen,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        ),
+                        const SizedBox(width: 16),
+                        
+                        // Add to Cart Button
+                        Expanded(
+                          child: SizedBox(
+                            height: 48,
+                            child: ElevatedButton.icon(
+                              onPressed: !isAvailable
+                                  ? null
+                                  : () {
+                                      final authProvider = context.read<AuthProvider>();
+                                      final uid = authProvider.currentUser?.uid;
+                                      if (uid == null) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Silakan login terlebih dahulu!')),
+                                        );
+                                        return;
+                                      }
+                                      
+                                      final cartProvider = context.read<CartProvider>();
+                                      cartProvider.addToCart(uid, currentProduct, qty: _quantity);
+                                      
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('${currentProduct.name} ditambahkan ke keranjang!'),
+                                          backgroundColor: primaryGreen,
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    },
+                              icon: Icon(
+                                isAvailable ? Icons.shopping_basket_outlined : Icons.cancel_outlined,
+                                size: 20,
+                              ),
+                              label: Text(
+                                isAvailable ? '+ Keranjang' : 'Stok Habis',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isAvailable ? primaryGreen : Colors.grey.shade400,
+                                foregroundColor: Colors.white,
+                                disabledBackgroundColor: Colors.grey.shade300,
+                                disabledForegroundColor: Colors.grey.shade600,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
           ),
         ],

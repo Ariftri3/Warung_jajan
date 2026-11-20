@@ -17,6 +17,8 @@ class ProductModel {
   final int reviewCount;          // contoh 200
   final int sold;                 // jumlah terjual, opsional dipakai di badge "Terlaris"
   final List<String> variants;    // contoh ["3 Pcs", "10 Pcs"]
+  final bool isAvailable;
+  final int stock;
 
   ProductModel({
     required this.id,
@@ -30,6 +32,8 @@ class ProductModel {
     this.reviewCount = 0,
     this.sold = 0,
     this.variants = const [],
+    this.isAvailable = true,
+    this.stock = 50,
   });
 
   factory ProductModel.fromFirestore(DocumentSnapshot doc) {
@@ -46,6 +50,8 @@ class ProductModel {
       reviewCount: (data['reviewCount'] ?? 0) as int,
       sold: (data['sold'] ?? 0) as int,
       variants: List<String>.from(data['variants'] ?? []),
+      isAvailable: (data['isAvailable'] as bool?) ?? true,
+      stock: (data['stock'] as num?)?.toInt() ?? 50,
     );
   }
 
@@ -61,6 +67,8 @@ class ProductModel {
       'reviewCount': reviewCount,
       'sold': sold,
       'variants': variants,
+      'isAvailable': isAvailable,
+      'stock': stock,
     };
   }
 }

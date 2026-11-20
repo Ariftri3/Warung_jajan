@@ -18,6 +18,7 @@ class OrderModel {
   final double? latitude;
   final double? longitude;
   final DateTime createdAt;
+  final String? paymentProofUrl; // URL bukti transfer (opsional)
 
   OrderModel({
     required this.id,
@@ -33,6 +34,7 @@ class OrderModel {
     this.latitude,
     this.longitude,
     required this.createdAt,
+    this.paymentProofUrl,
   });
 
   factory OrderModel.fromFirestore(DocumentSnapshot doc) {
@@ -59,6 +61,7 @@ class OrderModel {
       latitude: (data['latitude'] as num?)?.toDouble(),
       longitude: (data['longitude'] as num?)?.toDouble(),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      paymentProofUrl: data['paymentProofUrl'] as String?,
     );
   }
 
@@ -84,6 +87,7 @@ class OrderModel {
       'latitude': latitude,
       'longitude': longitude,
       'createdAt': FieldValue.serverTimestamp(),
+      if (paymentProofUrl != null) 'paymentProofUrl': paymentProofUrl,
     };
   }
 }

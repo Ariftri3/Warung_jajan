@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../navigation_dewer.dart';
+import '../app_drawer.dart';
 import '../home/home_screen.dart';
 import '../home/kategori_screen.dart';
 import 'checkout_screen.dart';
@@ -38,7 +38,7 @@ class _CartScreenState extends State<CartScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgColor,
-      drawer: const NavigationDewer(),
+      drawer: const AppDrawer(),
       appBar: _buildAppBar(context),
       body: Consumer2<AuthProvider, CartProvider>(
         builder: (context, authProvider, cartProvider, child) {
@@ -110,7 +110,6 @@ class _CartScreenState extends State<CartScreen> {
           );
         },
       ),
-      bottomNavigationBar: _buildCustomBottomNav(),
     );
   }
 

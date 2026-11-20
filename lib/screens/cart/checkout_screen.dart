@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -5,10 +6,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../models/order_model.dart';
-import '../home/home_screen.dart';
+import '../main_screen.dart';
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({Key? key}) : super(key: key);
 
@@ -28,6 +31,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String _currentAddress = 'Silakan ambil lokasi anda';
   double? _currentLat;
   double? _currentLng;
+
+  // State untuk bukti transfer
+  XFile? _paymentProof;
+  bool _isUploadingProof = false;
+
+  static const String _imgbbApiKey = '9e6a02d6da99bb00bdd612910437e62b';
+
+  Future<String?> _uploadProofToImgBB(XFile imageFile) async {
+    try {
+      final bytes = await imageFile.readAsBytes();
+      final base64Image = base64Encode(bytes);
+      final response = await http.post(
+        Uri.parse('https://api.imgbb.com/1/upload?key=$_imgbbApiKey'),
+        body: {'image': base64Image},
+      ).timeout(const Duration(seconds: 30));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data']['url'] as String?;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
 
   @override
   void initState() {
@@ -369,11 +396,99 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Container(
       padding: const EdgeInsets.only(left: 48, right: 16, bottom: 16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildBankItem('BCA'),
           _buildBankItem('Mandiri'),
           _buildBankItem('BNI'),
           _buildBankItem('BRI'),
+          const SizedBox(height: 12),
+
+          // ── Upload Bukti Transfer ──────────────────────────────
+          Text(
+            'Upload Bukti Transfer',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () async {
+              final picker = ImagePicker();
+              final file = await picker.pickImage(
+                source: ImageSource.gallery,
+                maxWidth: 1024,
+                imageQuality: 85,
+              );
+              if (file != null) {
+                setState(() => _paymentProof = file);
+              }
+            },
+            child: Container(
+              height: 100,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: _paymentProof != null ? primaryGreen : Colors.grey.shade300,
+                  width: _paymentProof != null ? 2 : 1,
+                ),
+              ),
+              child: _paymentProof != null
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(9),
+                          child: Image.network(
+                            _paymentProof!.path,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(Icons.image, size: 40, color: Colors.grey),
+                          ),
+                        ),
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _paymentProof = null),
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.close, color: Colors.white, size: 18),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.upload_file_outlined, size: 32, color: Colors.grey.shade400),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Ketuk untuk upload bukti transfer',
+                          style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+          if (_paymentProof != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Foto bukti transfer dipilih',
+                    style: GoogleFonts.inter(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          // ─────────────────────────────────────────────────────
         ],
       ),
     );
@@ -596,12 +711,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 return;
               }
 
+              // Validasi: bukti transfer wajib diupload jika Transfer Bank
+              if (selectedPayment == 'Transfer Bank' && _paymentProof == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Upload bukti transfer terlebih dahulu!'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
               try {
                 final authProvider = Provider.of<AuthProvider>(context, listen: false);
                 final cartProvider = Provider.of<CartProvider>(context, listen: false);
                 final uid = authProvider.currentUser?.uid;
                 
                 if (uid != null) {
+                  // Upload bukti transfer jika ada
+                  String? proofUrl;
+                  if (_paymentProof != null) {
+                    setState(() => _isUploadingProof = true);
+                    proofUrl = await _uploadProofToImgBB(_paymentProof!);
+                    setState(() => _isUploadingProof = false);
+                    if (proofUrl == null && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Gagal upload bukti transfer. Coba lagi.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                  }
+
                   // Buat data pesanan
                   final int subtotal = cartProvider.subtotal;
                   final int shippingCost = selectedShipping == 'Sameday' ? 15000 : 25000;
@@ -623,12 +766,35 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     latitude: _currentLat,
                     longitude: _currentLng,
                     createdAt: DateTime.now(),
+                    paymentProofUrl: proofUrl,
                   );
 
                   // Simpan ke Firestore Orders
                   await FirebaseFirestore.instance
                       .collection('orders')
                       .add(orderData.toMap());
+
+                  // ── 3A: Auto kurangi stok produk ─────────────────────
+                  for (final item in cartProvider.items) {
+                    if (item.productId.isEmpty) continue;
+                    try {
+                      final productRef = FirebaseFirestore.instance
+                          .collection('products')
+                          .doc(item.productId);
+                      final productSnap = await productRef.get();
+                      if (productSnap.exists) {
+                        final currentStock = (productSnap.data()?['stock'] as num?)?.toInt() ?? 50;
+                        final int newStock = (currentStock - item.quantity).clamp(0, 99999);
+                        await productRef.update({
+                          'stock': newStock,
+                          'isAvailable': newStock > 0,
+                        });
+                      }
+                    } catch (err) {
+                      debugPrint('Gagal update stok item ${item.name}: $err');
+                    }
+                  }
+                  // ─────────────────────────────────────────────────────
 
                   // Update Alamat Terakhir ke Profil User
                   await FirebaseFirestore.instance.collection('users').doc(uid).set({
@@ -678,7 +844,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 onPressed: () {
                                   Navigator.pushAndRemoveUntil(
                                     context,
-                                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                                    MaterialPageRoute(builder: (_) => const MainScreen()),
                                     (route) => false,
                                   );
                                 },
@@ -694,9 +860,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Gagal membuat pesanan: Izin akses Firebase ditolak atau terjadi kesalahan jaringan.'),
+                    SnackBar(
+                      content: Text('Gagal membuat pesanan: $e'),
                       backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 4),
                     ),
                   );
                 }
@@ -713,15 +880,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  'Buat Pesanan & Bayar',
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                if (_isUploadingProof) ...[
+                  const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(Icons.money, size: 20),
+                  const SizedBox(width: 10),
+                  Text('Mengupload bukti...', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600)),
+                ] else ...[
+                  Text(
+                    'Buat Pesanan & Bayar',
+                    style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.money, size: 20),
+                ],
               ],
             ),
           ),

@@ -7,6 +7,7 @@ import 'utils/app_theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/product_provider.dart';
 import 'providers/cart_provider.dart';
+import 'providers/navigation_provider.dart';
 import 'screens/splash_screen.dart';
 
 import 'seed_data.dart'; // [TAMBAHAN] untuk isi data awal
@@ -44,6 +45,7 @@ class WarungJajanApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (_) => NavigationProvider()),
       ],
       child: MaterialApp(
         title: 'Warung Jajan',

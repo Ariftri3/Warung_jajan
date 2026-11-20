@@ -3,11 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../providers/product_provider.dart';
 import '../../models/product_model.dart';
-import '../navigation_dewer.dart';
+import '../app_drawer.dart';
 import 'home_screen.dart';
 import '../detail/detail_screen.dart';
 import '../cart/cart_screen.dart';
 import '../profile/profile_screen.dart';
+import '../../widgets/shimmer_loading.dart';
 
 class KategoriScreen extends StatefulWidget {
   const KategoriScreen({Key? key}) : super(key: key);
@@ -25,7 +26,7 @@ class _KategoriScreenState extends State<KategoriScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgColor,
-      drawer: const NavigationDewer(),
+      drawer: const AppDrawer(),
       appBar: _buildAppBar(context),
       body: SingleChildScrollView(
         child: Padding(
@@ -83,7 +84,6 @@ class _KategoriScreenState extends State<KategoriScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: _buildCustomBottomNav(),
     );
   }
 
@@ -183,7 +183,7 @@ class _KategoriScreenState extends State<KategoriScreen> {
           stream: productProvider.watchProducts(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+              return const ProductGridShimmer();
             }
             if (snapshot.hasError) {
               return Center(child: Text('Terjadi kesalahan: ${snapshot.error}'));
@@ -217,6 +217,8 @@ class _KategoriScreenState extends State<KategoriScreen> {
   }
 
   Widget _buildProductCard(ProductModel product) {
+    final bool isAvailable = product.isAvailable && product.stock > 0;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -239,11 +241,42 @@ class _KategoriScreenState extends State<KategoriScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: product.imageUrl.startsWith('http')
-                ? Image.network(product.imageUrl, height: 110, width: double.infinity, fit: BoxFit.cover, errorBuilder: (c,e,s) => Container(height: 110, color: Colors.grey))
-                : Image.asset(product.imageUrl.isNotEmpty ? product.imageUrl : 'assets/images/kue lapis rainbow.jpeg', height: 110, width: double.infinity, fit: BoxFit.cover, errorBuilder: (c,e,s) => Container(height: 110, color: Colors.grey)),
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: product.imageUrl.startsWith('http')
+                    ? Image.network(product.imageUrl, height: 110, width: double.infinity, fit: BoxFit.cover, errorBuilder: (c,e,s) => Container(height: 110, color: Colors.grey))
+                    : Image.asset(product.imageUrl.isNotEmpty ? product.imageUrl : 'assets/images/kue lapis rainbow.jpeg', height: 110, width: double.infinity, fit: BoxFit.cover, errorBuilder: (c,e,s) => Container(height: 110, color: Colors.grey)),
+              ),
+              if (!isAvailable)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.45),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    ),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade700,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'HABIS',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
           Expanded(
             child: Padding(
@@ -260,26 +293,41 @@ class _KategoriScreenState extends State<KategoriScreen> {
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF333333),
+                          color: isAvailable ? const Color(0xFF333333) : Colors.grey.shade500,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8F5E9),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          product.tasteTag,
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF2E7D32),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F5E9),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              product.tasteTag,
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF2E7D32),
+                              ),
+                            ),
                           ),
-                        ),
+                          if (!isAvailable) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              '(Habis)',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
@@ -294,7 +342,7 @@ class _KategoriScreenState extends State<KategoriScreen> {
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
-                              color: primaryGreen,
+                              color: isAvailable ? primaryGreen : Colors.grey.shade500,
                             ),
                           ),
                         ],
@@ -310,10 +358,13 @@ class _KategoriScreenState extends State<KategoriScreen> {
                                MaterialPageRoute(builder: (_) => DetailScreen(product: product)),
                              );
                           },
-                          icon: const Icon(Icons.info_outline, size: 14),
-                          label: Text('Detail', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
+                          icon: Icon(isAvailable ? Icons.info_outline : Icons.cancel_outlined, size: 14),
+                          label: Text(
+                            isAvailable ? 'Detail' : 'Stok Habis',
+                            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryGreen,
+                            backgroundColor: isAvailable ? primaryGreen : Colors.grey.shade400,
                             foregroundColor: Colors.white,
                             elevation: 0,
                             padding: EdgeInsets.zero,

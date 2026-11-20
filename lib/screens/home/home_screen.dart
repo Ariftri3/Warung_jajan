@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../navigation_dewer.dart';
+import '../app_drawer.dart';
 import 'kategori_screen.dart';
 import '../detail/detail_screen.dart';
 import '../cart/cart_screen.dart';
 import 'package:provider/provider.dart';
 import '../../providers/product_provider.dart';
+import '../../providers/cart_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../models/product_model.dart';
 import '../profile/profile_screen.dart';
+import '../../widgets/shimmer_loading.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
@@ -25,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgColor,
-      drawer: const NavigationDewer(),
+      drawer: const AppDrawer(),
       appBar: _buildAppBar(),
       body: SingleChildScrollView(
         child: Padding(
@@ -52,7 +55,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: _buildCustomBottomNav(),
     );
   }
 
@@ -271,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
       stream: stream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const ProductGridShimmer();
         }
         if (snapshot.hasError) {
           return const Center(child: Text('Terjadi kesalahan'));
@@ -301,125 +303,203 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProductCard(ProductModel product) {
+    final bool isAvailable = product.isAvailable && product.stock > 0;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => DetailScreen(product: product)),        );
+          MaterialPageRoute(builder: (_) => DetailScreen(product: product)),
+        );
       },
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image with Heart Icon
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                child: product.imageUrl.startsWith('http')
-                  ? Image.network(
-                      product.imageUrl,
-                      height: 120,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        height: 120, width: double.infinity, color: Colors.grey.shade300,
-                        child: const Icon(Icons.broken_image),
-                      ),
-                    )
-                  : Image.asset(
-                      product.imageUrl.isNotEmpty ? product.imageUrl : 'assets/images/onde_onde.png',
-                      height: 120,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        height: 120, width: double.infinity, color: Colors.grey.shade300,
-                        child: const Icon(Icons.broken_image),
-                      ),
-                    ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image with Stock Badge
+            Stack(
               children: [
-                // Tag
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFE0B2).withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    product.tasteTag,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFFF57C00),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Title
-                Text(
-                  product.name,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF333333),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                // Price and Cart Button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Rp ${product.price}',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: primaryGreen,
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  child: product.imageUrl.startsWith('http')
+                      ? Image.network(
+                          product.imageUrl,
+                          height: 120,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            height: 120,
+                            width: double.infinity,
+                            color: Colors.grey.shade300,
+                            child: const Icon(Icons.broken_image),
+                          ),
+                        )
+                      : Image.asset(
+                          product.imageUrl.isNotEmpty ? product.imageUrl : 'assets/images/onde_onde.png',
+                          height: 120,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            height: 120,
+                            width: double.infinity,
+                            color: Colors.grey.shade300,
+                            child: const Icon(Icons.broken_image),
+                          ),
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: primaryGreen,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.add_shopping_cart,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    ),
-                  ],
                 ),
+                if (!isAvailable)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.45),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      ),
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade700,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'HABIS',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Tag
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFE0B2).withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          product.tasteTag,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFF57C00),
+                          ),
+                        ),
+                      ),
+                      if (isAvailable)
+                        Text(
+                          'Sisa ${product.stock}',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Title
+                  Text(
+                    product.name,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isAvailable ? const Color(0xFF333333) : Colors.grey.shade500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  // Price and Cart Button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Rp ${product.price}',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: isAvailable ? primaryGreen : Colors.grey.shade500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          if (!isAvailable) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Maaf, ${product.name} sedang habis!'),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                            return;
+                          }
+                          final authProvider = context.read<AuthProvider>();
+                          final uid = authProvider.currentUser?.uid;
+                          if (uid != null) {
+                            context.read<CartProvider>().addToCart(uid, product, qty: 1);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('${product.name} ditambahkan ke keranjang!'),
+                                backgroundColor: primaryGreen,
+                                duration: const Duration(seconds: 1),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Silakan login terlebih dahulu!')),
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: isAvailable ? primaryGreen : Colors.grey.shade400,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            isAvailable ? Icons.add_shopping_cart : Icons.remove_shopping_cart,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 
